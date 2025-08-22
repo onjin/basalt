@@ -4,7 +4,7 @@ pub mod explorer;
 pub mod help_modal;
 pub mod note_editor;
 pub mod outline;
-pub mod splash;
+pub mod splash_modal;
 pub mod statusbar;
 pub mod stylized_text;
 pub mod text_counts;
