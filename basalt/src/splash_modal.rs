@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Flex, Layout, Rect},
     style::Stylize,
     text::Text,
-    widgets::{StatefulWidgetRef, Widget},
+    widgets::{Clear, StatefulWidgetRef, Widget},
 };
 
 use crate::vault_selector::{VaultSelector, VaultSelectorState};
@@ -42,18 +42,20 @@ pub const LOGO: [&str; 25] = [
 ];
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct SplashState<'a> {
+pub struct SplashModalState<'a> {
     pub(crate) vault_selector_state: VaultSelectorState<'a>,
     pub(crate) version: &'a str,
+    pub(crate) visible: bool,
 }
 
-impl<'a> SplashState<'a> {
-    pub fn new(version: &'a str, items: Vec<&'a Vault>) -> Self {
+impl<'a> SplashModalState<'a> {
+    pub fn new(version: &'a str, items: Vec<&'a Vault>, visible: bool) -> Self {
         let vault_selector_state = VaultSelectorState::new(items);
 
-        SplashState {
+        SplashModalState {
             version,
             vault_selector_state,
+            visible,
         }
     }
 
@@ -92,14 +94,16 @@ impl<'a> SplashState<'a> {
 }
 
 #[derive(Default)]
-pub struct Splash<'a> {
+pub struct SplashModal<'a> {
     _lifetime: PhantomData<&'a ()>,
 }
 
-impl<'a> StatefulWidgetRef for Splash<'a> {
-    type State = SplashState<'a>;
+impl<'a> StatefulWidgetRef for SplashModal<'a> {
+    type State = SplashModalState<'a>;
 
     fn render_ref(&self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        Clear.render(area, buf);
+
         let [_, center, _] = Layout::horizontal([
             Constraint::Fill(1),
             Constraint::Length(79),
