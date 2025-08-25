@@ -622,13 +622,11 @@ mod tests {
 
         tests.iter().for_each(|text| {
             _ = terminal.clear();
+            let mut state = EditorState::default();
+            state.set_content(text);
             terminal
                 .draw(|frame| {
-                    Editor::default().render(
-                        frame.area(),
-                        frame.buffer_mut(),
-                        &mut EditorState::default().set_content(text),
-                    )
+                    Editor::default().render(frame.area(), frame.buffer_mut(), &mut state)
                 })
                 .unwrap();
             assert_snapshot!(terminal.backend());
@@ -654,65 +652,66 @@ mod tests {
 
         let tests = [
             ("empty_default_state", EditorState::default()),
-            (
-                "default_content",
-                EditorState::default().set_content(content),
-            ),
-            (
-                "read_mode_with_content",
-                EditorState::default()
-                    .set_content(content)
-                    .set_mode(Mode::Read),
-            ),
-            (
-                "edit_mode_with_content",
-                EditorState::default()
-                    .set_content(content)
-                    .set_mode(Mode::Edit),
-            ),
-            (
-                "edit_mode_with_content_and_simple_change",
-                EditorState::default()
-                    .set_content(content)
-                    .set_mode(Mode::Edit)
-                    .edit(KeyEvent::new(KeyCode::Char('#'), KeyModifiers::empty()).into())
-                    .exit_insert()
-                    .set_mode(Mode::Read),
-            ),
-            (
-                "edit_mode_with_arbitrary_cursor_move",
-                EditorState::default()
-                    .set_content(content)
-                    .cursor_move_col(7)
-                    .set_mode(Mode::Edit)
-                    .edit(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('B'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::empty()).into())
-                    .exit_insert()
-                    .set_mode(Mode::Read),
-            ),
-            (
-                "edit_mode_with_content_with_complete_word_input_change",
-                EditorState::default()
-                    .set_content(content)
-                    .cursor_down()
-                    .set_mode(Mode::Edit)
-                    .edit(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('B'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()).into())
-                    .edit(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()).into())
-                    .exit_insert()
-                    .set_mode(Mode::Read),
-            ),
+            ("default_content", {
+                let mut state = EditorState::default();
+                state.set_content(content);
+                state
+            }),
+            ("read_mode_with_content", {
+                let mut state = EditorState::default();
+                state.set_content(content);
+                state.set_mode(Mode::Read);
+                state
+            }),
+            ("edit_mode_with_content", {
+                let mut state = EditorState::default();
+                state.set_content(content);
+                state.set_mode(Mode::Edit);
+                state
+            }),
+            ("edit_mode_with_content_and_simple_change", {
+                let mut state = EditorState::default();
+                state.set_content(content);
+                state.set_mode(Mode::Edit);
+                state.edit(KeyEvent::new(KeyCode::Char('#'), KeyModifiers::empty()).into());
+                state.exit_insert();
+                state.set_mode(Mode::Read);
+                state
+            }),
+            ("edit_mode_with_arbitrary_cursor_move", {
+                let mut state = EditorState::default();
+                state.set_content(content);
+                state.cursor_move_col(7);
+                state.set_mode(Mode::Edit);
+                state.edit(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('B'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::empty()).into());
+                state.exit_insert();
+                state.set_mode(Mode::Read);
+                state
+            }),
+            ("edit_mode_with_content_with_complete_word_input_change", {
+                let mut state = EditorState::default();
+                state.set_content(content);
+                state.cursor_down();
+                state.set_mode(Mode::Edit);
+                state.edit(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('B'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()).into());
+                state.edit(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()).into());
+                state.exit_insert();
+                state.set_mode(Mode::Read);
+                state
+            }),
         ];
 
         let mut terminal = Terminal::new(TestBackend::new(80, 20)).unwrap();

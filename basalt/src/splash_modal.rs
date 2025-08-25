@@ -9,7 +9,33 @@ use ratatui::{
     widgets::{Clear, StatefulWidgetRef, Widget},
 };
 
-use crate::vault_selector::{VaultSelector, VaultSelectorState};
+use crate::{
+    app::Message as AppMessage,
+    vault_selector::{VaultSelector, VaultSelectorState},
+};
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Message {
+    Up,
+    Down,
+    Open,
+}
+
+pub fn update<'a>(message: &Message, state: &mut SplashModalState<'a>) -> Option<AppMessage<'a>> {
+    match message {
+        Message::Up => state.previous(),
+        Message::Down => state.next(),
+        Message::Open => {
+            state.select();
+            if let Some(vault) = state.selected_item() {
+                state.hide();
+                return Some(AppMessage::OpenVault(vault));
+            }
+        }
+    };
+
+    None
+}
 
 const TITLE: &str = "⋅𝕭𝖆𝖘𝖆𝖑𝖙⋅";
 
@@ -59,11 +85,12 @@ impl<'a> SplashModalState<'a> {
         }
     }
 
-    pub fn select(&self) -> Self {
-        Self {
-            vault_selector_state: self.vault_selector_state.select(),
-            ..self.clone()
-        }
+    pub fn hide(&mut self) {
+        self.visible = false;
+    }
+
+    pub fn select(&mut self) {
+        self.vault_selector_state.select();
     }
 
     pub fn items(self) -> Vec<&'a Vault> {
@@ -74,22 +101,22 @@ impl<'a> SplashModalState<'a> {
         self.vault_selector_state.items.get(index).cloned()
     }
 
+    pub fn selected_item(&self) -> Option<&'a Vault> {
+        self.vault_selector_state
+            .selected()
+            .and_then(|index| self.vault_selector_state.items.get(index).cloned())
+    }
+
     pub fn selected(&self) -> Option<usize> {
         self.vault_selector_state.selected()
     }
 
-    pub fn next(self) -> Self {
-        Self {
-            vault_selector_state: self.vault_selector_state.next(),
-            ..self
-        }
+    pub fn next(&mut self) {
+        self.vault_selector_state.next();
     }
 
-    pub fn previous(self) -> Self {
-        Self {
-            vault_selector_state: self.vault_selector_state.previous(),
-            ..self
-        }
+    pub fn previous(&mut self) {
+        self.vault_selector_state.previous();
     }
 }
 

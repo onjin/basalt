@@ -2,7 +2,7 @@ use basalt_core::obsidian::{Note, Vault};
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyEvent, KeyEventKind},
-    layout::{Constraint, Flex, Layout, Rect, Size},
+    layout::{Constraint, Layout, Rect, Size},
     widgets::{StatefulWidget, StatefulWidgetRef},
     DefaultTerminal,
 };
@@ -11,15 +11,15 @@ use std::{cell::RefCell, fmt::Debug, io::Result};
 
 use crate::{
     config::{self, Config},
-    explorer::{Explorer, ExplorerState},
-    help_modal::{HelpModal, HelpModalState},
-    note_editor::{Editor, EditorState, Mode},
-    outline::{Outline, OutlineState},
-    splash_modal::{SplashModal, SplashModalState},
+    explorer::{self, Explorer, ExplorerState},
+    help_modal::{self, HelpModal, HelpModalState},
+    note_editor::{self, markdown_parser::Node, Editor, EditorState, Mode},
+    outline::{self, Outline, OutlineState},
+    splash_modal::{self, SplashModal, SplashModalState},
     statusbar::{StatusBar, StatusBarState},
     stylized_text::{self, FontStyle},
     text_counts::{CharCount, WordCount},
-    vault_selector_modal::{VaultSelectorModal, VaultSelectorModalState},
+    vault_selector_modal::{self, VaultSelectorModal, VaultSelectorModalState},
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -33,7 +33,7 @@ pub enum ScrollAmount {
     HalfPage,
 }
 
-fn calc_scroll_amount(scroll_amount: ScrollAmount, height: usize) -> usize {
+pub fn calc_scroll_amount(scroll_amount: &ScrollAmount, height: usize) -> usize {
     match scroll_amount {
         ScrollAmount::One => 1,
         ScrollAmount::HalfPage => height / 2,
@@ -54,12 +54,6 @@ pub struct AppState<'a> {
     splash_modal: SplashModalState<'a>,
     help_modal: HelpModalState,
     vault_selector_modal: VaultSelectorModalState<'a>,
-}
-
-fn modal_area_height(size: Size) -> usize {
-    let vertical = Layout::vertical([Constraint::Percentage(50)]).flex(Flex::Center);
-    let [area] = vertical.areas(Rect::new(0, 0, size.width, size.height.saturating_sub(3)));
-    area.height.into()
 }
 
 impl<'a> AppState<'a> {
@@ -87,184 +81,16 @@ impl<'a> AppState<'a> {
     }
 }
 
-pub mod splash {
-    use crate::splash_modal::SplashModalState;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub enum Message {
-        Up,
-        Down,
-        Open,
-    }
-
-    pub fn update(message: Message, state: SplashModalState) -> SplashModalState {
-        match message {
-            Message::Up => state.previous(),
-            Message::Down => state.next(),
-            Message::Open => state.select(),
-        }
-    }
-}
-
-pub mod explorer {
-    use crate::explorer::ExplorerState;
-
-    use super::ScrollAmount;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub enum Message {
-        Up,
-        Down,
-        Open,
-        Sort,
-        Toggle,
-        ToggleOutline,
-        SwitchPaneNext,
-        SwitchPanePrevious,
-        ScrollUp(ScrollAmount),
-        ScrollDown(ScrollAmount),
-    }
-
-    pub fn update(message: Message, state: ExplorerState) -> ExplorerState {
-        match message {
-            Message::Up => state.previous(1),
-            Message::Down => state.next(1),
-            Message::Sort => state.sort(),
-            Message::Open => state.select(),
-            Message::Toggle => state.toggle(),
-            Message::SwitchPaneNext | Message::SwitchPanePrevious => {
-                if state.active {
-                    state.set_active(false)
-                } else {
-                    state.set_active(true)
-                }
-            }
-            _ => state,
-        }
-    }
-}
-
-pub mod outline {
-    use crate::outline::OutlineState;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub enum Message {
-        Up,
-        Down,
-        Select,
-        Expand,
-        Toggle,
-        ToggleExplorer,
-        SwitchPaneNext,
-        SwitchPanePrevious,
-    }
-
-    pub fn update(message: Message, state: OutlineState) -> OutlineState {
-        match message {
-            Message::Up => state.previous(1),
-            Message::Down => state.next(1),
-            Message::Toggle => state.toggle(),
-            Message::SwitchPaneNext | Message::SwitchPanePrevious => {
-                if state.active {
-                    state.set_active(false)
-                } else {
-                    state.set_active(true)
-                }
-            }
-            _ => state,
-        }
-    }
-}
-
-pub mod note_editor {
-    use ratatui::crossterm::event::{KeyCode, KeyEvent};
-
-    use super::ScrollAmount;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub enum Message {
-        Save,
-        SwitchPaneNext,
-        SwitchPanePrevious,
-        ToggleExplorer,
-        ToggleOutline,
-        EditMode,
-        ExitMode,
-        ReadMode,
-        KeyEvent(KeyEvent),
-        CursorUp,
-        CursorLeft,
-        CursorRight,
-        CursorWordForward,
-        CursorWordBackward,
-        CursorDown,
-        ScrollUp(ScrollAmount),
-        ScrollDown(ScrollAmount),
-        Delete,
-    }
-
-    pub fn handle_editing_event(key: &KeyEvent) -> Option<Message> {
-        match key.code {
-            KeyCode::Up => Some(Message::CursorUp),
-            KeyCode::Down => Some(Message::CursorDown),
-            KeyCode::Esc => Some(Message::ExitMode),
-            KeyCode::Backspace => Some(Message::Delete),
-            _ => Some(Message::KeyEvent(*key)),
-        }
-    }
-}
-
-pub mod help_modal {
-    use crate::help_modal::HelpModalState;
-
-    use super::ScrollAmount;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub enum Message {
-        Toggle,
-        Close,
-        ScrollUp(ScrollAmount),
-        ScrollDown(ScrollAmount),
-    }
-
-    pub fn update(message: Message, state: HelpModalState) -> HelpModalState {
-        match message {
-            Message::Toggle => state.toggle_visibility(),
-            Message::Close => state.hide(),
-            _ => state,
-        }
-    }
-}
-
-pub mod vault_selector_modal {
-    use crate::vault_selector_modal::VaultSelectorModalState;
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub enum Message {
-        Toggle,
-        Up,
-        Down,
-        Select,
-        Close,
-    }
-
-    pub fn update(message: Message, state: VaultSelectorModalState) -> VaultSelectorModalState {
-        match message {
-            Message::Up => state.previous(),
-            Message::Down => state.next(),
-            Message::Toggle => state.toggle_visibility(),
-            Message::Select => state.select(),
-            Message::Close => state.hide(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
-pub enum Message {
+pub enum Message<'a> {
     Quit,
     Resize(Size),
+    SetActivePane(ActivePane),
+    OpenVault(&'a Vault),
+    SelectNote(SelectedNote),
+    UpdateSelectedNoteContent((String, Option<Vec<Node>>)),
 
-    Splash(splash::Message),
+    Splash(splash_modal::Message),
     Explorer(explorer::Message),
     NoteEditor(note_editor::Message),
     Outline(outline::Message),
@@ -303,12 +129,12 @@ pub struct SelectedNote {
     content: String,
 }
 
-impl From<Note> for SelectedNote {
-    fn from(value: Note) -> Self {
+impl From<&Note> for SelectedNote {
+    fn from(value: &Note) -> Self {
         Self {
             name: value.name.clone(),
             path: value.path.to_string_lossy().to_string(),
-            content: Note::read_to_string(&value).unwrap_or_default(),
+            content: Note::read_to_string(value).unwrap_or_default(),
         }
     }
 }
@@ -319,7 +145,7 @@ fn help_text(version: &str) -> String {
 
 pub struct App<'a> {
     state: AppState<'a>,
-    config: Config,
+    config: Config<'a>,
     terminal: RefCell<DefaultTerminal>,
 }
 
@@ -351,17 +177,22 @@ impl<'a> App<'a> {
     fn run(&'a mut self) -> Result<()> {
         self.state.is_running = true;
 
-        while self.state.is_running {
-            self.draw(&mut self.state.clone())?;
+        let mut state = self.state.clone();
+        let config = self.config.clone();
+        while state.is_running {
+            self.draw(&mut state.clone())?;
             let event = event::read()?;
-            let action = self.handle_event(&event);
-            self.state = self.update(&self.state, action);
+
+            let mut message = App::handle_event(&config, &state, &event);
+            while message.is_some() {
+                message = App::update(&config, &mut state, message);
+            }
         }
 
         Ok(())
     }
 
-    fn draw(&self, state: &'a mut AppState<'a>) -> Result<()> {
+    fn draw(&self, state: &mut AppState<'a>) -> Result<()> {
         let mut terminal = self.terminal.borrow_mut();
 
         terminal.draw(move |frame| {
@@ -373,450 +204,133 @@ impl<'a> App<'a> {
         Ok(())
     }
 
-    fn handle_event(&self, event: &Event) -> Option<Message> {
+    fn handle_event(
+        config: &'a Config,
+        state: &AppState<'_>,
+        event: &Event,
+    ) -> Option<Message<'a>> {
         match event {
             Event::Resize(cols, rows) => Some(Message::Resize(Size::new(*cols, *rows))),
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event)
+                App::handle_key_event(config, state, key_event)
             }
             _ => None,
         }
     }
 
     #[rustfmt::skip]
-    fn handle_active_component_event(&self, key: &KeyEvent, active_component: ActivePane) -> Option<Message> {
+    fn handle_active_component_event(config: &'a Config, state: &AppState<'_>, key: &KeyEvent, active_component: ActivePane) -> Option<Message<'a>> {
         match active_component {
-            ActivePane::Splash => self.config.splash.key_to_message(key.into()),
-            ActivePane::Explorer => self.config.explorer.key_to_message(key.into()),
+            ActivePane::Splash => config.splash.key_to_message(key.into()),
+            ActivePane::Explorer => config.explorer.key_to_message(key.into()),
+            ActivePane::Outline => config.outline.key_to_message(key.into()),
+            ActivePane::HelpModal => config.help_modal.key_to_message(key.into()),
+            ActivePane::VaultSelectorModal => config.vault_selector_modal.key_to_message(key.into()),
             ActivePane::NoteEditor => {
-                    if self.state.note_editor.is_editing() {
+                    if state.note_editor.is_editing() {
                         note_editor::handle_editing_event(key).map(Message::NoteEditor)
                     } else {
-                        self.config.note_editor.key_to_message(key.into())
+                        config.note_editor.key_to_message(key.into())
                 }
             },
-            ActivePane::Outline => self.config.outline.key_to_message(key.into()),
-            ActivePane::HelpModal => self.config.help_modal.key_to_message(key.into()),
-            ActivePane::VaultSelectorModal => self.config.vault_selector_modal.key_to_message(key.into()),
         }
     }
 
-    fn handle_key_event(&self, key: &KeyEvent) -> Option<Message> {
-        let global_message = self.config.global.key_to_message(key.into());
+    fn handle_key_event(
+        config: &'a Config,
+        state: &AppState<'_>,
+        key: &KeyEvent,
+    ) -> Option<Message<'a>> {
+        let global_message = config.global.key_to_message(key.into());
 
-        let is_editing = self.state.note_editor.is_editing();
+        let is_editing = state.note_editor.is_editing();
 
         if global_message.is_some() && !is_editing {
             return global_message;
         }
 
-        let active_component = self.state.active_component();
-        self.handle_active_component_event(key, active_component)
+        let active_component = state.active_component();
+        App::handle_active_component_event(config, state, key, active_component)
     }
 
-    fn update(&self, state: &AppState<'a>, message: Option<Message>) -> AppState<'a> {
-        let state = state.clone();
-        let Some(message) = message else {
-            return state;
-        };
-
-        match message {
-            Message::Quit => state.set_running(false),
-            Message::Resize(size) => AppState {
-                screen_size: size,
-                ..state
-            },
-            Message::HelpModal(message) => {
-                let help_modal = help_modal::update(message.clone(), state.help_modal.clone());
-
-                match message {
-                    help_modal::Message::ScrollDown(scroll_amount) => AppState {
-                        help_modal: help_modal.scroll_down(calc_scroll_amount(
-                            scroll_amount,
-                            modal_area_height(state.screen_size),
-                        )),
-                        ..state
-                    },
-                    help_modal::Message::ScrollUp(scroll_amount) => AppState {
-                        help_modal: help_modal.scroll_up(calc_scroll_amount(
-                            scroll_amount,
-                            modal_area_height(state.screen_size),
-                        )),
-                        ..state
-                    },
-                    _ => AppState {
-                        help_modal,
-                        ..state
-                    },
+    fn update(
+        config: &Config,
+        state: &mut AppState<'a>,
+        message: Option<Message<'a>>,
+    ) -> Option<Message<'a>> {
+        match message? {
+            Message::Quit => state.is_running = false,
+            Message::Resize(size) => state.screen_size = size,
+            Message::SetActivePane(active_pane) => match active_pane {
+                ActivePane::Explorer => {
+                    state.active_pane = active_pane;
+                    // TODO: use event/message
+                    state.explorer.set_active(true);
                 }
+                ActivePane::NoteEditor => {
+                    state.active_pane = active_pane;
+                    // TODO: use event/message
+                    state.note_editor.set_active(true);
+                }
+                ActivePane::Outline => {
+                    state.active_pane = active_pane;
+                    // TODO: use event/message
+                    state.outline.set_active(true);
+                }
+                _ => {}
+            },
+            Message::OpenVault(vault) => {
+                state.explorer = ExplorerState::new(&vault.name, vault.entries());
+                state.note_editor = EditorState::default();
+                return Some(Message::SetActivePane(ActivePane::Explorer));
+            }
+            Message::SelectNote(selected_note) => {
+                state.selected_note = Some(selected_note.clone());
+
+                // TODO: This should be behind an event/message
+                state.note_editor = EditorState::default();
+                state.note_editor.set_path(selected_note.path.into());
+                state.note_editor.set_content(&selected_note.content);
+
+                if !config.experimental_editor {
+                    state.note_editor.mode = Mode::Read;
+                }
+
+                // TODO: This should be behind an event/message
+                state.outline = OutlineState::new(
+                    state.note_editor.nodes(),
+                    state.note_editor.current_row,
+                    state.outline.is_open(),
+                );
+            }
+            Message::UpdateSelectedNoteContent((updated_content, nodes)) => {
+                if let Some(selected_note) = state.selected_note.as_mut() {
+                    selected_note.content = updated_content;
+                    return nodes.map(|nodes| Message::Outline(outline::Message::SetNodes(nodes)));
+                }
+            }
+
+            Message::HelpModal(message) => {
+                return help_modal::update(&message, state.screen_size, &mut state.help_modal);
             }
             Message::VaultSelectorModal(message) => {
-                let vault_selector_modal = vault_selector_modal::update(
-                    message.clone(),
-                    state.vault_selector_modal.clone(),
-                );
-
-                match message {
-                    vault_selector_modal::Message::Select => vault_selector_modal
-                        .selected()
-                        .and_then(|index| vault_selector_modal.clone().get_item(index))
-                        .map(|vault| AppState {
-                            active_pane: ActivePane::Explorer,
-                            explorer: ExplorerState::new(&vault.name, vault.entries())
-                                .set_active(true),
-                            ..Default::default()
-                        })
-                        .unwrap_or(state),
-                    _ => AppState {
-                        vault_selector_modal,
-                        ..state
-                    },
-                }
+                return vault_selector_modal::update(&message, &mut state.vault_selector_modal);
             }
             Message::Splash(message) => {
-                let splash_modal = splash::update(message.clone(), state.splash_modal.clone());
-
-                match message {
-                    splash::Message::Open => splash_modal
-                        .selected()
-                        .and_then(|index| splash_modal.clone().get_item(index))
-                        .map(|vault| AppState {
-                            active_pane: ActivePane::Explorer,
-                            explorer: ExplorerState::new(&vault.name, vault.entries())
-                                .set_active(true),
-                            splash_modal: SplashModalState::default(),
-                            ..state.clone()
-                        })
-                        .unwrap_or(state),
-                    _ => AppState {
-                        splash_modal,
-                        ..state
-                    },
-                }
+                return splash_modal::update(&message, &mut state.splash_modal);
             }
             Message::Explorer(message) => {
-                let explorer = explorer::update(message.clone(), state.explorer.clone());
-
-                match message {
-                    explorer::Message::SwitchPaneNext => AppState {
-                        active_pane: ActivePane::NoteEditor,
-                        note_editor: state.note_editor.set_active(true),
-                        explorer,
-                        ..state
-                    },
-                    explorer::Message::SwitchPanePrevious => AppState {
-                        active_pane: ActivePane::Outline,
-                        outline: state.outline.set_active(true),
-                        explorer,
-                        ..state
-                    },
-                    explorer::Message::ScrollUp(scroll_amount) => AppState {
-                        explorer: explorer.previous(calc_scroll_amount(
-                            scroll_amount,
-                            state.screen_size.height.into(),
-                        )),
-                        ..state
-                    },
-                    explorer::Message::ScrollDown(scroll_amount) => AppState {
-                        explorer: explorer.next(calc_scroll_amount(
-                            scroll_amount,
-                            state.screen_size.height.into(),
-                        )),
-                        ..state
-                    },
-                    explorer::Message::Toggle => match explorer.open {
-                        true => AppState { explorer, ..state },
-                        false => AppState {
-                            active_pane: ActivePane::NoteEditor,
-                            explorer: explorer.set_active(false),
-                            note_editor: state.note_editor.set_active(true),
-                            ..state
-                        },
-                    },
-                    explorer::Message::ToggleOutline => AppState {
-                        outline: state.outline.toggle(),
-                        ..state
-                    },
-                    explorer::Message::Open => {
-                        let selected_note = explorer.selected_note.clone().map(SelectedNote::from);
-
-                        let note_editor = selected_note
-                            .clone()
-                            .map(|note| {
-                                EditorState::default()
-                                    .set_mode(if self.config.experimental_editor {
-                                        state.note_editor.mode
-                                    } else {
-                                        Mode::Read
-                                    })
-                                    .set_content(&note.content)
-                                    .set_path(note.path.into())
-                            })
-                            .unwrap_or_default();
-
-                        let outline = OutlineState::new(
-                            note_editor.nodes(),
-                            note_editor.current_row,
-                            state.outline.is_open(),
-                        );
-
-                        AppState {
-                            explorer,
-                            outline,
-                            note_editor,
-                            selected_note,
-                            ..state
-                        }
-                    }
-                    _ => AppState { explorer, ..state },
-                }
+                return explorer::update(&message, state.screen_size, &mut state.explorer);
             }
             Message::Outline(message) => {
-                let outline = outline::update(message.clone(), state.outline.clone());
-
-                match message {
-                    outline::Message::SwitchPaneNext => AppState {
-                        active_pane: ActivePane::Explorer,
-                        explorer: state.explorer.set_active(true),
-                        outline,
-                        ..state
-                    },
-                    outline::Message::SwitchPanePrevious => AppState {
-                        active_pane: ActivePane::NoteEditor,
-                        note_editor: state.note_editor.set_active(true),
-                        outline,
-                        ..state
-                    },
-                    outline::Message::Toggle => match outline.open {
-                        true => AppState { outline, ..state },
-                        false => AppState {
-                            active_pane: ActivePane::NoteEditor,
-                            outline: outline.set_active(false),
-                            note_editor: state.note_editor.set_active(true),
-                            ..state
-                        },
-                    },
-                    outline::Message::Expand => AppState {
-                        outline: state.outline.toggle_item(),
-                        ..state
-                    },
-                    outline::Message::Select => AppState {
-                        note_editor: state.note_editor.set_row(
-                            outline
-                                .selected()
-                                .map(|item| item.get_range().start)
-                                .unwrap_or_default(),
-                        ),
-                        ..state
-                    },
-
-                    _ => AppState { outline, ..state },
-                }
+                return outline::update(&message, &mut state.outline);
             }
             Message::NoteEditor(message) => {
-                let mode = &state.note_editor.mode();
-
-                let editor_enabled = self.config.experimental_editor;
-
-                if editor_enabled {
-                    match message {
-                        note_editor::Message::KeyEvent(key) if *mode == Mode::Edit => {
-                            let note_editor = state.note_editor.edit(key.into());
-                            let selected_note = state.selected_note.map(|note| SelectedNote {
-                                content: note_editor.content().to_string(),
-                                ..note
-                            });
-
-                            return AppState {
-                                note_editor,
-                                selected_note,
-                                ..state
-                            };
-                        }
-                        note_editor::Message::CursorLeft => {
-                            return AppState {
-                                note_editor: state.note_editor.cursor_left(),
-                                ..state
-                            }
-                        }
-                        note_editor::Message::CursorRight => {
-                            return AppState {
-                                note_editor: state.note_editor.cursor_right(),
-                                ..state
-                            }
-                        }
-                        note_editor::Message::CursorWordForward => {
-                            return AppState {
-                                note_editor: state.note_editor.cursor_word_forward(),
-                                ..state
-                            }
-                        }
-                        note_editor::Message::CursorWordBackward => {
-                            return AppState {
-                                note_editor: state.note_editor.cursor_word_backward(),
-                                ..state
-                            }
-                        }
-                        note_editor::Message::Delete => {
-                            return AppState {
-                                note_editor: state.note_editor.delete_char(),
-                                ..state
-                            }
-                        }
-                        note_editor::Message::EditMode if *mode != Mode::Edit => {
-                            if let Some(selected_note) = &state.selected_note {
-                                return AppState {
-                                    active_pane: ActivePane::NoteEditor,
-                                    note_editor: state
-                                        .note_editor
-                                        .clone()
-                                        .set_content(&selected_note.content)
-                                        .set_mode(Mode::Edit),
-                                    ..state
-                                };
-                            } else {
-                                return state;
-                            }
-                        }
-                        note_editor::Message::ReadMode if *mode != Mode::Read => {
-                            return AppState {
-                                note_editor: state.note_editor.set_mode(Mode::Read),
-                                ..state
-                            }
-                        }
-                        note_editor::Message::ExitMode if *mode == Mode::Read => {
-                            return AppState {
-                                note_editor: state.note_editor.set_mode(Mode::View),
-                                ..state
-                            }
-                        }
-                        note_editor::Message::ExitMode if *mode == Mode::Edit => {
-                            let note_editor = state.note_editor.exit_insert();
-                            let outline = state.outline.set_nodes(note_editor.nodes());
-
-                            let selected_note = state
-                                .selected_note
-                                .map(|note| SelectedNote {
-                                    content: note_editor.content().to_string(),
-                                    ..note
-                                })
-                                .clone();
-
-                            return AppState {
-                                note_editor: note_editor.set_mode(Mode::View),
-                                outline,
-                                selected_note,
-                                ..state
-                            };
-                        }
-                        note_editor::Message::Save => {
-                            let note_editor = state.note_editor.save();
-                            let selected_note = state.selected_note.map(|note| SelectedNote {
-                                content: note_editor.content().to_string(),
-                                ..note
-                            });
-
-                            return AppState {
-                                selected_note,
-                                note_editor,
-                                ..state
-                            };
-                        }
-                        _ => {}
-                    }
-                }
-
-                match message {
-                    note_editor::Message::CursorUp => {
-                        let note_editor = state.note_editor.cursor_up();
-                        let outline = state.outline.select_at(note_editor.current_row);
-
-                        AppState {
-                            note_editor,
-                            outline,
-                            ..state
-                        }
-                    }
-                    note_editor::Message::CursorDown => {
-                        let note_editor = state.note_editor.cursor_down();
-                        let outline = state.outline.select_at(note_editor.current_row);
-
-                        AppState {
-                            note_editor,
-                            outline,
-                            ..state
-                        }
-                    }
-                    note_editor::Message::ScrollUp(scroll_amount) if *mode != Mode::Edit => {
-                        AppState {
-                            note_editor: state.note_editor.scroll_up(calc_scroll_amount(
-                                scroll_amount,
-                                state.screen_size.height.into(),
-                            )),
-                            ..state
-                        }
-                    }
-                    note_editor::Message::ScrollDown(scroll_amount) if *mode != Mode::Edit => {
-                        AppState {
-                            note_editor: state.note_editor.scroll_down(calc_scroll_amount(
-                                scroll_amount,
-                                state.screen_size.height.into(),
-                            )),
-                            ..state
-                        }
-                    }
-                    note_editor::Message::ToggleExplorer if *mode != Mode::Edit => {
-                        match state.explorer.open {
-                            true => AppState {
-                                explorer: state.explorer.toggle(),
-                                ..state
-                            },
-                            false => AppState {
-                                active_pane: ActivePane::Explorer,
-                                explorer: state.explorer.toggle().set_active(true),
-                                note_editor: state.note_editor.set_active(false),
-                                ..state
-                            },
-                        }
-                    }
-                    note_editor::Message::ToggleOutline if *mode != Mode::Edit => {
-                        match state.outline.open {
-                            true => AppState {
-                                outline: state.outline.toggle(),
-                                ..state
-                            },
-                            false => AppState {
-                                active_pane: ActivePane::Outline,
-                                outline: state.outline.toggle().set_active(true),
-                                note_editor: state.note_editor.set_active(false),
-                                ..state
-                            },
-                        }
-                    }
-                    note_editor::Message::SwitchPaneNext => AppState {
-                        active_pane: ActivePane::Outline,
-                        note_editor: state.note_editor.set_active(false),
-                        outline: state.outline.set_active(true),
-                        ..state
-                    },
-                    note_editor::Message::SwitchPanePrevious => AppState {
-                        active_pane: ActivePane::Explorer,
-                        note_editor: state.note_editor.set_active(false),
-                        explorer: state.explorer.set_active(true),
-                        ..state
-                    },
-                    note_editor::Message::ScrollUp(_) if *mode == Mode::Edit => AppState {
-                        note_editor: state.note_editor.cursor_up(),
-                        ..state
-                    },
-                    note_editor::Message::ScrollDown(_) if *mode == Mode::Edit => AppState {
-                        note_editor: state.note_editor.cursor_down(),
-                        ..state
-                    },
-                    _ => state,
-                }
+                return note_editor::update(&message, state.screen_size, &mut state.note_editor);
             }
-        }
+        };
+
+        None
     }
 
     fn render_splash(&self, area: Rect, buf: &mut Buffer, state: &mut SplashModalState<'a>) {

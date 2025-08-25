@@ -7,10 +7,11 @@ use serde::{
     Deserialize, Deserializer,
 };
 
-use crate::app::{
-    explorer, help_modal, note_editor, outline, splash, vault_selector_modal, Message, ScrollAmount,
+use crate::{
+    app::{Message, ScrollAmount},
+    explorer, help_modal, outline, splash_modal, vault_selector_modal,
 };
-use crate::config::ConfigError;
+use crate::{config::ConfigError, note_editor};
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub(crate) struct KeyBinding {
@@ -242,14 +243,14 @@ pub(crate) enum Command {
     VaultSelectorModalToggle,
 }
 
-impl From<Command> for Message {
+impl From<Command> for Message<'_> {
     fn from(value: Command) -> Self {
         match value {
             Command::Quit => Message::Quit,
 
-            Command::SplashUp => Message::Splash(splash::Message::Up),
-            Command::SplashDown => Message::Splash(splash::Message::Down),
-            Command::SplashOpen => Message::Splash(splash::Message::Open),
+            Command::SplashUp => Message::Splash(splash_modal::Message::Up),
+            Command::SplashDown => Message::Splash(splash_modal::Message::Down),
+            Command::SplashOpen => Message::Splash(splash_modal::Message::Open),
 
             Command::ExplorerUp => Message::Explorer(explorer::Message::Up),
             Command::ExplorerDown => Message::Explorer(explorer::Message::Down),

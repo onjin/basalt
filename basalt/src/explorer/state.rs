@@ -109,68 +109,48 @@ impl<'a> ExplorerState<'a> {
         let items: Vec<Item> = items.into_iter().map(|entry| entry.into()).collect();
         let sort = Sort::default();
 
-        ExplorerState {
+        let mut state = ExplorerState {
             title,
             sort,
+            active: true,
             open: true,
             selected_item_index: None,
             selected_item_path: None,
             selected_note: None,
             list_state: ListState::default().with_selected(Some(0)),
             ..Default::default()
-        }
-        .flatten_with_items(&items)
+        };
+
+        state.flatten_with_items(&items);
+        state
     }
 
-    pub fn set_active(&self, active: bool) -> Self {
-        Self {
-            active,
-            ..self.clone()
-        }
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
     }
 
-    pub fn toggle(&self) -> Self {
-        Self {
-            open: !self.open,
-            ..self.clone()
-        }
+    pub fn toggle(&mut self) {
+        self.open = !self.open;
     }
 
-    pub fn open(self) -> Self {
-        Self { open: true, ..self }
-    }
-
-    pub fn close(self) -> Self {
-        Self {
-            open: false,
-            ..self
-        }
-    }
-
-    pub fn flatten_with_sort(&self, sort: Sort) -> Self {
+    pub fn flatten_with_sort(&mut self, sort: Sort) {
         let mut items = self.items.clone();
         items.sort_by(sort_items_by(sort));
 
-        Self {
-            flat_items: items.iter().flat_map(flatten(sort, 0)).collect(),
-            items,
-            sort,
-            ..self.clone()
-        }
+        self.flat_items = items.iter().flat_map(flatten(sort, 0)).collect();
+        self.items = items;
+        self.sort = sort;
     }
 
-    pub fn flatten_with_items(&self, items: &[Item]) -> Self {
+    pub fn flatten_with_items(&mut self, items: &[Item]) {
         let mut items = items.to_vec();
         items.sort_by(sort_items_by(self.sort));
 
-        Self {
-            flat_items: items.iter().flat_map(flatten(self.sort, 0)).collect(),
-            items: items.to_vec(),
-            ..self.clone()
-        }
+        self.flat_items = items.iter().flat_map(flatten(self.sort, 0)).collect();
+        self.items = items.to_vec();
     }
 
-    pub fn sort(&self) -> Self {
+    pub fn sort(&mut self) {
         let sort = match self.sort {
             Sort::Asc => Sort::Desc,
             Sort::Desc => Sort::Asc,
@@ -223,13 +203,13 @@ impl<'a> ExplorerState<'a> {
         }
     }
 
-    pub fn select(&self) -> Self {
+    pub fn select(&mut self) {
         let Some(selected_item_index) = self.list_state.selected() else {
-            return self.clone();
+            return;
         };
 
         let Some(current_item) = self.flat_items.get(selected_item_index) else {
-            return self.clone();
+            return;
         };
 
         match current_item {
@@ -243,12 +223,11 @@ impl<'a> ExplorerState<'a> {
 
                 self.flatten_with_items(&items)
             }
-            (Item::File(note), _) => Self {
-                selected_note: Some(note.clone()),
-                selected_item_index: Some(selected_item_index),
-                selected_item_path: Some(note.path.clone()),
-                ..self.clone()
-            },
+            (Item::File(note), _) => {
+                self.selected_note = Some(note.clone());
+                self.selected_item_index = Some(selected_item_index);
+                self.selected_item_path = Some(note.path.clone());
+            }
         }
     }
 
@@ -260,28 +239,18 @@ impl<'a> ExplorerState<'a> {
         self.open
     }
 
-    pub fn next(mut self, amount: usize) -> Self {
+    pub fn next(&mut self, amount: usize) {
         let index = self
             .list_state
             .selected()
             .map(|i| (i + amount).min(self.flat_items.len().saturating_sub(1)));
 
         self.list_state.select(index);
-
-        Self {
-            list_state: self.list_state,
-            ..self
-        }
     }
 
-    pub fn previous(mut self, amount: usize) -> Self {
+    pub fn previous(&mut self, amount: usize) {
         let index = self.list_state.selected().map(|i| i.saturating_sub(amount));
 
         self.list_state.select(index);
-
-        Self {
-            list_state: self.list_state,
-            ..self
-        }
     }
 }

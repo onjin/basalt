@@ -109,22 +109,19 @@ impl<'text_buffer> EditorState<'text_buffer> {
         }
     }
 
-    pub fn set_content(mut self, content: &str) -> Self {
+    pub fn set_content(&mut self, content: &str) {
         self.nodes = markdown_parser::from_str(content);
         self.content_original = content.to_string();
         self.content = content.to_string();
         self.update_text_buffer();
-        self
     }
 
-    pub fn set_path(mut self, path: PathBuf) -> Self {
+    pub fn set_path(&mut self, path: PathBuf) {
         self.path = path;
-        self
     }
 
-    pub fn exit_insert(mut self) -> Self {
+    pub fn exit_insert(&mut self) {
         self.intermediate_save();
-        self
     }
 
     fn intermediate_save(&mut self) {
@@ -149,7 +146,7 @@ impl<'text_buffer> EditorState<'text_buffer> {
         }
     }
 
-    pub fn delete_char(mut self) -> Self {
+    pub fn delete_char(&mut self) {
         let (row, col) = self.text_buffer.cursor();
 
         if row == 0 && col == 0 && self.text_buffer().to_string().trim().is_empty() {
@@ -181,19 +178,16 @@ impl<'text_buffer> EditorState<'text_buffer> {
                 shift: false,
             });
         }
-
-        self
     }
 
-    pub fn edit(mut self, input: Input) -> Self {
+    pub fn edit(&mut self, input: Input) {
         self.text_buffer.edit(input);
         if self.text_buffer.is_modified() {
             self.dirty = true;
         }
-        self
     }
 
-    pub fn cursor_up(mut self) -> Self {
+    pub fn cursor_up(&mut self) {
         let (row, _) = self.text_buffer.cursor();
         if row == 0 {
             if self.dirty {
@@ -202,7 +196,7 @@ impl<'text_buffer> EditorState<'text_buffer> {
             }
 
             if self.current_row == 0 {
-                return self;
+                return;
             }
 
             self.current_row = self.current_row.saturating_sub(1);
@@ -211,45 +205,36 @@ impl<'text_buffer> EditorState<'text_buffer> {
         } else {
             self.text_buffer.cursor_move(CursorMove::Up);
         }
-
-        self
     }
 
-    pub fn cursor_left(mut self) -> Self {
+    pub fn cursor_left(&mut self) {
         self.text_buffer.cursor_move(CursorMove::Left);
-        self
     }
 
-    pub fn cursor_right(mut self) -> Self {
+    pub fn cursor_right(&mut self) {
         self.text_buffer.cursor_move(CursorMove::Right);
-        self
     }
 
-    pub fn cursor_move_col(mut self, cursor_move_col: i32) -> Self {
+    pub fn cursor_move_col(&mut self, cursor_move_col: i32) {
         self.text_buffer.cursor_move((0, cursor_move_col).into());
-        self
     }
 
-    pub fn cursor_word_forward(mut self) -> Self {
+    pub fn cursor_word_forward(&mut self) {
         self.text_buffer.cursor_move(CursorMove::WordForward);
-        self
     }
 
-    pub fn cursor_word_backward(mut self) -> Self {
+    pub fn cursor_word_backward(&mut self) {
         self.text_buffer.cursor_move(CursorMove::WordBackward);
-        self
     }
 
-    pub fn set_row(mut self, row: usize) -> Self {
+    pub fn set_row(&mut self, row: usize) {
         self.current_row = row;
-        self
     }
 
-    pub fn cursor_down(mut self) -> Self {
+    pub fn cursor_down(&mut self) {
         let (row, _) = self.text_buffer.cursor();
         if row < self.text_buffer.lines().len().saturating_sub(1) {
             self.text_buffer.cursor_move(CursorMove::Down);
-            return self;
         } else {
             if self.dirty {
                 self.intermediate_save();
@@ -259,7 +244,7 @@ impl<'text_buffer> EditorState<'text_buffer> {
             let nodes_amount = self.nodes.len();
 
             if self.current_row == nodes_amount.saturating_sub(1) {
-                return self;
+                return;
             }
 
             // let nodes = markdown_parser::from_str(self.raw());
@@ -275,22 +260,19 @@ impl<'text_buffer> EditorState<'text_buffer> {
             self.update_text_buffer();
             self.text_buffer.cursor_move(CursorMove::Top);
         }
-
-        self
     }
 
-    pub fn save(mut self) -> Self {
+    pub fn save(&mut self) {
         if !self.modified {
-            return self;
+            return;
         }
 
         match self.save_modified_to_file() {
-            Ok(_) => self,
-            Err(_err) => Self {
+            Ok(_) => {}
+            Err(_err) => {
                 // TODO: Display error messages
                 // error_message: Some(format!("Failed to save file: {}", err)),
-                ..self
-            },
+            }
         }
     }
 
@@ -301,7 +283,7 @@ impl<'text_buffer> EditorState<'text_buffer> {
         Ok(())
     }
 
-    pub fn scroll_up(self, amount: usize) -> Self {
+    pub fn scroll_up(&mut self, amount: usize) {
         let new_position = self.scrollbar.position.saturating_sub(amount);
         let new_state = self.scrollbar.state.position(new_position);
 
@@ -309,32 +291,24 @@ impl<'text_buffer> EditorState<'text_buffer> {
         // Look for inspiration from the explorer module list scrolling where the list item is kept
         // in the center, if it is possible. This should be used to scroll the view instead of
         // directly changing the scrollbar in this function.
-
-        Self {
-            scrollbar: Scrollbar {
-                state: new_state,
-                position: new_position,
-            },
-            ..self
+        self.scrollbar = Scrollbar {
+            state: new_state,
+            position: new_position,
         }
     }
 
-    pub fn scroll_down(self, amount: usize) -> Self {
+    pub fn scroll_down(&mut self, amount: usize) {
         let new_position = self.scrollbar.position.saturating_add(amount);
         let new_state = self.scrollbar.state.position(new_position);
 
-        Self {
-            scrollbar: Scrollbar {
-                state: new_state,
-                position: new_position,
-            },
-            ..self
+        self.scrollbar = Scrollbar {
+            state: new_state,
+            position: new_position,
         }
     }
 
-    pub fn set_mode(mut self, mode: Mode) -> Self {
+    pub fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
-        self
     }
 
     pub fn text_buffer(&self) -> &TextBuffer<'text_buffer> {
@@ -345,9 +319,8 @@ impl<'text_buffer> EditorState<'text_buffer> {
         self.text_buffer.as_mut()
     }
 
-    pub fn set_active(mut self, active: bool) -> Self {
+    pub fn set_active(&mut self, active: bool) {
         self.active = active;
-        self
     }
 
     pub fn update_text_buffer_content(&mut self, content: &str) {

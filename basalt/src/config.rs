@@ -32,11 +32,11 @@ pub enum ConfigError {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ConfigSection {
-    pub key_bindings: BTreeMap<String, Message>,
+pub struct ConfigSection<'a> {
+    pub key_bindings: BTreeMap<String, Message<'a>>,
 }
 
-impl ConfigSection {
+impl ConfigSection<'_> {
     /// Takes self and another config and merges the `key_bindings` together overwriting the
     /// existing entries with the value from another config.
     pub(crate) fn merge_key_bindings(&mut self, config: Self) {
@@ -45,12 +45,12 @@ impl ConfigSection {
         });
     }
 
-    pub fn key_to_message(&self, key: Key) -> Option<Message> {
+    pub fn key_to_message(&self, key: Key) -> Option<Message<'_>> {
         self.key_bindings.get(&key.to_string()).cloned()
     }
 }
 
-impl fmt::Display for ConfigSection {
+impl fmt::Display for ConfigSection<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.key_bindings
             .iter()
@@ -61,24 +61,24 @@ impl fmt::Display for ConfigSection {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Config {
+pub struct Config<'a> {
     pub experimental_editor: bool,
-    pub global: ConfigSection,
-    pub splash: ConfigSection,
-    pub explorer: ConfigSection,
-    pub outline: ConfigSection,
-    pub help_modal: ConfigSection,
-    pub note_editor: ConfigSection,
-    pub vault_selector_modal: ConfigSection,
+    pub global: ConfigSection<'a>,
+    pub splash: ConfigSection<'a>,
+    pub explorer: ConfigSection<'a>,
+    pub outline: ConfigSection<'a>,
+    pub help_modal: ConfigSection<'a>,
+    pub note_editor: ConfigSection<'a>,
+    pub vault_selector_modal: ConfigSection<'a>,
 }
 
-impl Default for Config {
+impl Default for Config<'_> {
     fn default() -> Self {
         Self::from(TomlConfig::default())
     }
 }
 
-impl From<TomlConfig> for Config {
+impl From<TomlConfig> for Config<'_> {
     fn from(value: TomlConfig) -> Self {
         Self {
             experimental_editor: value.experimental_editor,
@@ -93,7 +93,7 @@ impl From<TomlConfig> for Config {
     }
 }
 
-impl From<TomlConfigSection> for ConfigSection {
+impl From<TomlConfigSection> for ConfigSection<'_> {
     fn from(TomlConfigSection { key_bindings }: TomlConfigSection) -> Self {
         Self {
             key_bindings: key_bindings
@@ -104,7 +104,7 @@ impl From<TomlConfigSection> for ConfigSection {
     }
 }
 
-impl Config {
+impl Config<'_> {
     /// Takes self and another config and merges the `key_bindings` together overwriting the
     /// existing entries with the value from another config.
     pub(crate) fn merge(&mut self, config: Self) -> Self {
@@ -120,7 +120,7 @@ impl Config {
     }
 }
 
-impl fmt::Display for Config {
+impl fmt::Display for Config<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "[global]\n{}", self.global)?;
         writeln!(f, "[splash]\n{}", self.splash)?;
@@ -133,16 +133,16 @@ impl fmt::Display for Config {
     }
 }
 
-impl From<BTreeMap<String, Message>> for ConfigSection {
-    fn from(value: BTreeMap<String, Message>) -> Self {
+impl<'a> From<BTreeMap<String, Message<'a>>> for ConfigSection<'a> {
+    fn from(value: BTreeMap<String, Message<'a>>) -> Self {
         Self {
             key_bindings: value,
         }
     }
 }
 
-impl<const N: usize> From<[(String, Message); N]> for ConfigSection {
-    fn from(value: [(String, Message); N]) -> Self {
+impl<'a, const N: usize> From<[(String, Message<'a>); N]> for ConfigSection<'a> {
+    fn from(value: [(String, Message<'a>); N]) -> Self {
         BTreeMap::from(value).into()
     }
 }
@@ -206,7 +206,7 @@ struct TomlConfig {
 ///
 /// It first attempts to find the config file in the home directory. If not found, it then checks
 /// the config directory.
-fn read_user_config() -> Result<Config, ConfigError> {
+fn read_user_config<'a>() -> Result<Config<'a>, ConfigError> {
     let home_dir_path = home_dir().map(|home_dir| home_dir.join(".basalt.toml"));
     let config_dir_path =
         choose_base_strategy().map(|strategy| strategy.config_dir().join("basalt/config.toml"));
@@ -236,7 +236,7 @@ const BASE_CONFIGURATION_STR: &str =
 ///
 /// # Configuration Precedence
 /// System overrides > User config > Base config
-pub fn load() -> Result<Config, ConfigError> {
+pub fn load<'a>() -> Result<Config<'a>, ConfigError> {
     // TODO: Use compile time toml parsing instead to check the build error during compile time
     // Requires a custom proc-macro workspace crate
     let mut base_config: Config = toml::from_str::<TomlConfig>(BASE_CONFIGURATION_STR)?.into();
