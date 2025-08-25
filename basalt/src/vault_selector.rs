@@ -24,11 +24,8 @@ impl<'a> VaultSelectorState<'a> {
         }
     }
 
-    pub fn select(&self) -> Self {
-        Self {
-            selected_item_index: self.list_state.selected(),
-            ..self.clone()
-        }
+    pub fn select(&mut self) {
+        self.selected_item_index = self.list_state.selected();
     }
 
     pub fn items(self) -> Vec<&'a Vault> {
@@ -43,27 +40,17 @@ impl<'a> VaultSelectorState<'a> {
         self.selected_item_index
     }
 
-    pub fn next(mut self) -> Self {
+    pub fn next(&mut self) {
         let index = self
             .list_state
             .selected()
             .map(|i| (i + 1).min(self.items.len() - 1));
 
         self.list_state.select(index);
-
-        Self {
-            list_state: self.list_state,
-            ..self
-        }
     }
 
-    pub fn previous(mut self) -> Self {
+    pub fn previous(&mut self) {
         self.list_state.select_previous();
-
-        Self {
-            list_state: self.list_state,
-            ..self
-        }
     }
 }
 

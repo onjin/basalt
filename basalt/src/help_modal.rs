@@ -1,6 +1,6 @@
 use ratatui::{
     buffer::Buffer,
-    layout::{Alignment, Constraint, Flex, Layout, Rect},
+    layout::{Alignment, Constraint, Flex, Layout, Rect, Size},
     style::{Color, Style, Stylize},
     text::Line,
     widgets::{
@@ -8,6 +8,47 @@ use ratatui::{
         ScrollbarState, StatefulWidget, Widget, Wrap,
     },
 };
+
+use crate::app::{calc_scroll_amount, Message as AppMessage, ScrollAmount};
+
+fn modal_area_height(size: Size) -> usize {
+    let vertical = Layout::vertical([Constraint::Percentage(50)]).flex(Flex::Center);
+    let [area] = vertical.areas(Rect::new(0, 0, size.width, size.height.saturating_sub(3)));
+    area.height.into()
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Message {
+    Toggle,
+    Close,
+    ScrollUp(ScrollAmount),
+    ScrollDown(ScrollAmount),
+}
+
+pub fn update<'a>(
+    message: &Message,
+    screen_size: Size,
+    state: &mut HelpModalState,
+) -> Option<AppMessage<'a>> {
+    match message {
+        Message::Toggle => state.toggle_visibility(),
+        Message::Close => state.hide(),
+        Message::ScrollDown(scroll_amount) => {
+            state.scroll_down(calc_scroll_amount(
+                scroll_amount,
+                modal_area_height(screen_size),
+            ));
+        }
+        Message::ScrollUp(scroll_amount) => {
+            state.scroll_up(calc_scroll_amount(
+                scroll_amount,
+                modal_area_height(screen_size),
+            ));
+        }
+    };
+
+    None
+}
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct HelpModalState {
@@ -26,32 +67,23 @@ impl HelpModalState {
         }
     }
 
-    pub fn toggle_visibility(&self) -> Self {
-        Self {
-            visible: !self.visible,
-            ..self.clone()
-        }
+    pub fn toggle_visibility(&mut self) {
+        self.visible = !self.visible;
     }
 
-    pub fn hide(&self) -> Self {
-        Self {
-            visible: false,
-            ..self.clone()
-        }
+    pub fn hide(&mut self) {
+        self.visible = false;
     }
 
-    pub fn scroll_up(&self, amount: usize) -> Self {
+    pub fn scroll_up(&mut self, amount: usize) {
         let scrollbar_position = self.scrollbar_position.saturating_sub(amount);
         let scrollbar_state = self.scrollbar_state.position(scrollbar_position);
 
-        Self {
-            scrollbar_state,
-            scrollbar_position,
-            ..self.clone()
-        }
+        self.scrollbar_state = scrollbar_state;
+        self.scrollbar_position = scrollbar_position;
     }
 
-    pub fn scroll_down(&self, amount: usize) -> Self {
+    pub fn scroll_down(&mut self, amount: usize) {
         let scrollbar_position = self
             .scrollbar_position
             .saturating_add(amount)
@@ -59,19 +91,8 @@ impl HelpModalState {
 
         let scrollbar_state = self.scrollbar_state.position(scrollbar_position);
 
-        Self {
-            scrollbar_state,
-            scrollbar_position,
-            ..self.clone()
-        }
-    }
-
-    pub fn reset_scrollbar(self) -> Self {
-        Self {
-            scrollbar_state: ScrollbarState::default(),
-            scrollbar_position: 0,
-            ..self
-        }
+        self.scrollbar_state = scrollbar_state;
+        self.scrollbar_position = scrollbar_position;
     }
 }
 

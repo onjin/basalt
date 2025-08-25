@@ -2,6 +2,7 @@ mod item;
 mod state;
 
 pub use item::Item;
+use ratatui::layout::Size;
 pub use state::ExplorerState;
 pub use state::Sort;
 
@@ -16,8 +17,70 @@ use ratatui::{
     widgets::{Block, BorderType, List, ListItem, StatefulWidget},
 };
 
+use crate::app::{
+    calc_scroll_amount, ActivePane, Message as AppMessage, ScrollAmount, SelectedNote,
+};
+use crate::outline;
+
 const SORT_SYMBOL_ASC: &str = "↑𝌆";
 const SORT_SYMBOL_DESC: &str = "↓𝌆";
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Message {
+    Up,
+    Down,
+    Open,
+    Sort,
+    Toggle,
+    ToggleOutline,
+    SwitchPaneNext,
+    SwitchPanePrevious,
+    ScrollUp(ScrollAmount),
+    ScrollDown(ScrollAmount),
+}
+
+pub fn update<'a>(
+    message: &Message,
+    screen_size: Size,
+    state: &mut ExplorerState,
+) -> Option<AppMessage<'a>> {
+    match message {
+        Message::Up => state.previous(1),
+        Message::Down => state.next(1),
+        Message::Sort => state.sort(),
+        Message::Toggle => {
+            state.toggle();
+            if !state.is_open() {
+                state.set_active(false);
+                return Some(AppMessage::SetActivePane(ActivePane::NoteEditor));
+            }
+        }
+        Message::SwitchPaneNext => {
+            state.set_active(false);
+            return Some(AppMessage::SetActivePane(ActivePane::NoteEditor));
+        }
+        Message::SwitchPanePrevious => {
+            state.set_active(false);
+            return Some(AppMessage::SetActivePane(ActivePane::Outline));
+        }
+        Message::ScrollUp(scroll_amount) => {
+            state.previous(calc_scroll_amount(scroll_amount, screen_size.height.into()));
+        }
+        Message::ScrollDown(scroll_amount) => {
+            state.next(calc_scroll_amount(scroll_amount, screen_size.height.into()));
+        }
+        Message::ToggleOutline => {
+            return Some(AppMessage::Outline(outline::Message::Toggle));
+        }
+        Message::Open => {
+            state.select();
+            let note = state.selected_note.as_ref()?;
+            return Some(AppMessage::SelectNote(SelectedNote::from(note)));
+        }
+    };
+
+    None
+}
 
 #[derive(Default)]
 pub struct Explorer<'a> {
@@ -176,13 +239,13 @@ mod tests {
 
         tests.into_iter().for_each(|items| {
             _ = terminal.clear();
+            let mut state = ExplorerState::new("Test", items);
+            state.select();
+            state.sort();
+
             terminal
                 .draw(|frame| {
-                    Explorer::default().render(
-                        frame.area(),
-                        frame.buffer_mut(),
-                        &mut ExplorerState::new("Test", items).select().sort(),
-                    )
+                    Explorer::default().render(frame.area(), frame.buffer_mut(), &mut state)
                 })
                 .unwrap();
             assert_snapshot!(terminal.backend());

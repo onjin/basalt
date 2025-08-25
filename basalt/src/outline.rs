@@ -12,13 +12,64 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListItem, Padding, StatefulWidget},
 };
 
-/// Outline needs to produce a similar tree like structure as in the explorer module, which means
-/// that there is potential for generalizing a widget for displaying a 'tree'.
-///
-/// The three for the outline can be formed by using the parsed markdown nodes and filtering all
-/// the headings with indices.
-///
-/// These indices can be used to mark the location of the node for scrolling.
+use crate::{
+    app::{ActivePane, Message as AppMessage},
+    explorer,
+    note_editor::{self, markdown_parser::Node},
+};
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Message {
+    Up,
+    Down,
+    Select,
+    SelectAt(usize),
+    SetNodes(Vec<Node>),
+    Expand,
+    Toggle,
+    ToggleExplorer,
+    SwitchPaneNext,
+    SwitchPanePrevious,
+}
+
+pub fn update<'a>(message: &Message, state: &mut OutlineState) -> Option<AppMessage<'a>> {
+    match message {
+        Message::Up => state.previous(1),
+        Message::Down => state.next(1),
+        Message::Expand => state.toggle_item(),
+        Message::SelectAt(index) => state.select_at(*index),
+        Message::SetNodes(nodes) => state.set_nodes(nodes),
+
+        Message::SwitchPaneNext => {
+            state.set_active(false);
+            return Some(AppMessage::SetActivePane(ActivePane::Explorer));
+        }
+        Message::SwitchPanePrevious => {
+            state.set_active(false);
+            return Some(AppMessage::SetActivePane(ActivePane::NoteEditor));
+        }
+        Message::Toggle => {
+            state.toggle();
+            if !state.is_open() {
+                state.set_active(false);
+                return Some(AppMessage::SetActivePane(ActivePane::NoteEditor));
+            }
+        }
+        Message::Select => {
+            if let Some(item) = state.selected() {
+                return Some(AppMessage::NoteEditor(note_editor::Message::SetRow(
+                    item.get_range().start,
+                )));
+            }
+        }
+        Message::ToggleExplorer => {
+            return Some(AppMessage::Explorer(explorer::Message::Toggle));
+        }
+    };
+
+    None
+}
+
 #[derive(Default)]
 pub struct Outline;
 
@@ -276,14 +327,10 @@ mod tests {
 
         tests.into_iter().for_each(|(name, nodes)| {
             _ = terminal.clear();
+            let mut state = OutlineState::new(&nodes, 0, true);
+            state.expand_all();
             terminal
-                .draw(|frame| {
-                    Outline.render(
-                        frame.area(),
-                        frame.buffer_mut(),
-                        &mut OutlineState::new(&nodes, 0, true).expand_all(),
-                    )
-                })
+                .draw(|frame| Outline.render(frame.area(), frame.buffer_mut(), &mut state))
                 .unwrap();
             assert_snapshot!(name, terminal.backend());
         });

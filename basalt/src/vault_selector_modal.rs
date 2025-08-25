@@ -7,7 +7,40 @@ use ratatui::{
     widgets::{Clear, ScrollbarState, StatefulWidget, StatefulWidgetRef, Widget},
 };
 
-use crate::vault_selector::{VaultSelector, VaultSelectorState};
+use crate::{
+    app::Message as AppMessage,
+    vault_selector::{VaultSelector, VaultSelectorState},
+};
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Message {
+    Toggle,
+    Up,
+    Down,
+    Select,
+    Close,
+}
+
+pub fn update<'a>(
+    message: &Message,
+    state: &mut VaultSelectorModalState<'a>,
+) -> Option<AppMessage<'a>> {
+    match message {
+        Message::Up => state.previous(),
+        Message::Down => state.next(),
+        Message::Toggle => state.toggle_visibility(),
+        Message::Close => state.hide(),
+        Message::Select => {
+            state.select();
+            if let Some(vault) = state.selected_item() {
+                state.hide();
+                return Some(AppMessage::OpenVault(vault));
+            }
+        }
+    };
+
+    None
+}
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct VaultSelectorModalState<'a> {
@@ -27,43 +60,34 @@ impl<'a> VaultSelectorModalState<'a> {
         self.vault_selector_state.selected()
     }
 
-    pub fn select(&self) -> Self {
-        Self {
-            vault_selector_state: self.vault_selector_state.clone().select(),
-            ..self.clone()
-        }
+    pub fn select(&mut self) {
+        self.vault_selector_state.select();
+    }
+
+    pub fn selected_item(&self) -> Option<&'a Vault> {
+        self.vault_selector_state
+            .selected()
+            .and_then(|index| self.vault_selector_state.items.get(index).cloned())
     }
 
     pub fn get_item(self, index: usize) -> Option<&'a Vault> {
         self.vault_selector_state.get_item(index)
     }
 
-    pub fn next(&self) -> Self {
-        Self {
-            vault_selector_state: self.vault_selector_state.clone().next(),
-            ..self.clone()
-        }
+    pub fn next(&mut self) {
+        self.vault_selector_state.next();
     }
 
-    pub fn previous(&self) -> Self {
-        Self {
-            vault_selector_state: self.vault_selector_state.clone().previous(),
-            ..self.clone()
-        }
+    pub fn previous(&mut self) {
+        self.vault_selector_state.previous();
     }
 
-    pub fn hide(&self) -> Self {
-        Self {
-            visible: false,
-            ..self.clone()
-        }
+    pub fn hide(&mut self) {
+        self.visible = false;
     }
 
-    pub fn toggle_visibility(&self) -> Self {
-        Self {
-            visible: !self.visible,
-            ..self.clone()
-        }
+    pub fn toggle_visibility(&mut self) {
+        self.visible = !self.visible;
     }
 }
 

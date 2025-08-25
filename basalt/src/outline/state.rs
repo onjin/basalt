@@ -132,24 +132,25 @@ impl OutlineState {
         let headings = nodes.to_headings();
         let max_heading_count = headings.len();
 
-        OutlineState {
+        let mut state = OutlineState {
             open,
             max_heading_count,
             selected_item_index: None,
             items: headings.to_items(nodes.len()),
             list_state: ListState::default(),
             ..Default::default()
-        }
-        .select_at(index)
-        .expand_all()
+        };
+        state.select_at(index);
+        state.expand_all();
+        state
     }
 
-    pub fn set_nodes(mut self, nodes: &[Node]) -> Self {
+    pub fn set_nodes(&mut self, nodes: &[Node]) {
         let headings = nodes.to_headings();
         let max_heading_count = headings.len();
         self.max_heading_count = max_heading_count;
         self.items = headings.to_items(nodes.len());
-        self.expand_all()
+        self.expand_all();
     }
 
     pub fn selected(&self) -> Option<Item> {
@@ -160,24 +161,20 @@ impl OutlineState {
         }
     }
 
-    pub fn set_active(mut self, active: bool) -> Self {
+    pub fn set_active(&mut self, active: bool) {
         self.active = active;
-        self
     }
 
-    pub fn toggle(mut self) -> Self {
+    pub fn toggle(&mut self) {
         self.open = !self.open;
-        self
     }
 
-    pub fn open(mut self) -> Self {
+    pub fn open(&mut self) {
         self.open = true;
-        self
     }
 
-    pub fn close(mut self) -> Self {
+    pub fn close(&mut self) {
         self.open = false;
-        self
     }
 
     fn toggle_item_in_tree(item: &Item, target_range: &Range<usize>, should_toggle: bool) -> Item {
@@ -210,7 +207,7 @@ impl OutlineState {
         }
     }
 
-    pub fn toggle_item(mut self) -> Self {
+    pub fn toggle_item(&mut self) {
         let index = self.list_state.selected().unwrap_or_default();
 
         let items = self.items.flatten();
@@ -225,15 +222,12 @@ impl OutlineState {
                 .map(|item| Self::toggle_item_in_tree(item, &target_range, true))
                 .collect();
         };
-
-        self
     }
 
-    pub fn select_at(mut self, index: usize) -> Self {
+    pub fn select_at(&mut self, index: usize) {
         let (selected_item_index, _) = self.items.find_item(index).unzip();
         self.selected_item_index = selected_item_index;
         self.list_state.select(selected_item_index);
-        self
     }
 
     fn expanded_to_all_items(items: &[Item], expanded: bool) -> Vec<Item> {
@@ -256,33 +250,29 @@ impl OutlineState {
             .collect()
     }
 
-    pub fn expand_all(mut self) -> Self {
+    pub fn expand_all(&mut self) {
         self.items = Self::expanded_to_all_items(self.items.as_slice(), true);
-        self
     }
 
-    pub fn collapse_all(mut self) -> Self {
+    pub fn collapse_all(&mut self) {
         self.items = Self::expanded_to_all_items(self.items.as_slice(), false);
-        self
     }
 
     pub fn is_open(&self) -> bool {
         self.open
     }
 
-    pub fn next(mut self, amount: usize) -> Self {
+    pub fn next(&mut self, amount: usize) {
         let index = self
             .list_state
             .selected()
             .map(|i| (i + amount).min(self.max_heading_count.saturating_sub(1)))
             .unwrap_or_default();
         self.list_state.select(Some(index));
-        self
     }
 
-    pub fn previous(mut self, amount: usize) -> Self {
+    pub fn previous(&mut self, amount: usize) {
         let index = self.list_state.selected().map(|i| i.saturating_sub(amount));
         self.list_state.select(index);
-        self
     }
 }
