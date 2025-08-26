@@ -1,5 +1,3 @@
-Output basalt.gif
-
 Set Padding 32
 Set FontSize 16
 Set Height 1000
@@ -36,8 +34,6 @@ Type "t"
 Sleep 3.5s
 Ctrl+O
 Sleep 4s
-Shift+Tab
-Sleep 2.5s
 Type "j"
 Sleep 0.5s
 Type "j"
