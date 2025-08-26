@@ -345,7 +345,7 @@ impl<'a> App<'a> {
         let (left, right) = if state.explorer.open {
             (Constraint::Length(35), Constraint::Fill(1))
         } else {
-            (Constraint::Length(5), Constraint::Fill(1))
+            (Constraint::Length(4), Constraint::Fill(1))
         };
 
         let [explorer_pane, note, outline] = Layout::horizontal([
