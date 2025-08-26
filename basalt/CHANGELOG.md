@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1 (Unreleased)
+
+### Changed
+
+- [Adjusted Explorer folded border to match outline](https://github.com/erikjuhani/basalt/commit/56ee16be7cfc8a211a980295818a2a2204009f98)
+
 ## 0.10.0 (2025-08-21)
 
 ### Added
