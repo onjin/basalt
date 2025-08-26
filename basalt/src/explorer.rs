@@ -3,6 +3,7 @@ mod state;
 
 pub use item::Item;
 use ratatui::layout::Size;
+use ratatui::widgets::Borders;
 pub use state::ExplorerState;
 pub use state::Sort;
 
@@ -170,7 +171,11 @@ impl<'a> StatefulWidget for Explorer<'a> {
             let layout = Layout::horizontal([Constraint::Length(5)]).split(area);
 
             List::new(items)
-                .block(block.title(" ▶ "))
+                .block(
+                    block
+                        .title(" ▶ ")
+                        .borders(Borders::LEFT | Borders::TOP | Borders::BOTTOM),
+                )
                 .highlight_style(Style::new().reversed().dark_gray())
                 .highlight_symbol(" ")
                 .render(layout[0], buf, &mut state.list_state);
