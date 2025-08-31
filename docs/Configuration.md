@@ -22,6 +22,153 @@ Basalt key mappings can be modified or extended by defining key mappings in the 
 
 Each key mapping is associated with a specific 'pane' and becomes active when that pane has focus. The global section applies to all panes and is evaluated first.
 
+Key bindings support both built-in Basalt commands and custom arbitrary command execution, allowing you to integrate external applications and create automation workflows.
+
+## Custom Command Execution
+
+In addition to built-in commands, you can execute arbitrary external commands using special command prefixes:
+
+```toml
+[global]
+key_bindings = [
+  { key = "q", command = "quit" },  # Built-in command
+  { key = "ctrl+alt+e", command = "spawn:open obsidian://daily?vault=%vault" },  # Custom spawn command
+  { key = "ctrl+g", command = "exec:nvim %note" },  # Custom exec command
+]
+```
+
+### Command Types
+
+#### Built-in Commands
+
+These are Basalt's native commands that control application behavior (see full list in the Default Configuration section below).
+
+#### Execute Command - `exec:`
+
+Runs a command in the current shell environment. The command will block until completion. Only the first argument is treated as the executable command, with all remaining arguments passed as literal parameters.
+
+```toml
+key_bindings = [
+  { key = "ctrl+alt+e", command = "exec:nvim %note_path" },
+]
+```
+
+#### Spawn Process - `spawn:`
+
+Spawns a new process without blocking. This is for opening external applications or URLs. Like `exec:`, only the first argument is the executable, with remaining arguments passed as literal parameters.
+
+```toml
+key_bindings = [
+  { key = "ctrl+o", command = "spawn:open %note" },
+  { key = "ctrl+b", command = "spawn:open https://example.com" },
+]
+```
+
+## Variables
+
+Basalt provides special variables that are dynamically replaced with current context information:
+
+| Variable | Description | Example Value |
+|----------|-------------|---------------|
+| `%vault` | Current vault name | `my-notes` |
+| `%note` | Current note name | `My Note` |
+| `%note_path` | Current note file path | `/path/to/vault/daily/2024-01-15.md` |
+
+Variables can be used anywhere within the command string and will be replaced at runtime.
+
+## Integration Examples
+
+### Obsidian Integration
+
+Obsidian supports URL schemes that start with `obsidian://`, allowing you to trigger various actions within the application:
+
+```toml
+# Open daily note in Obsidian
+key_bindings = [
+  { key = "ctrl+d", command = "spawn:open obsidian://daily?vault=%vault" },
+]
+
+# Open specific note in Obsidian
+key_bindings = [
+  { key = "ctrl+alt+e", command = "spawn:open obsidian://open?vault=%vault&file=%note" },
+]
+
+# Create new note in Obsidian
+key_bindings = [
+  { key = "ctrl+n", command = "spawn:open obsidian://new?vault=%vault&name=New Note" },
+]
+
+# Open specific path in Obsidian
+key_bindings = [
+  { key = "ctrl+p", command = "spawn:open obsidian://open?path=%note_path" },
+]
+```
+
+Common Obsidian URI actions include:
+- `obsidian://open` - Open a specific note
+- `obsidian://new` - Create a new note
+- `obsidian://daily` - Open daily note
+- `obsidian://search` - Perform a search
+
+For more information about Obsidian URI schemes, see the [official Obsidian URI documentation](https://help.obsidian.md/Extending+Obsidian/Obsidian+URI).
+
+### External Editor Integration
+
+```toml
+# Open current note in VS Code
+key_bindings = [
+  { key = "ctrl+c", command = "spawn:code %note" },
+]
+
+# Open current note in vim
+key_bindings = [
+  { key = "ctrl+v", command = "exec:vim %note" },
+]
+
+# Open current note in nano
+key_bindings = [
+  { key = "ctrl+n", command = "exec:nano %note" },
+]
+```
+
+### Web Integration
+
+```toml
+# Open specific URLs
+key_bindings = [
+  { key = "ctrl+g", command = "spawn:open https://github.com/user/repo" },
+]
+
+# Search engines - construct URLs with variables
+key_bindings = [
+  { key = "ctrl+s", command = "spawn:open https://www.google.com/search?q=%note" },
+]
+```
+
+## Platform Considerations
+
+- **macOS**: Use `cmd` instead of `ctrl` for standard shortcuts, and `open` command for launching applications
+- **Linux**: Use `xdg-open` for opening files/URLs with default applications
+- **Windows**: Use `start` command for opening files/URLs
+
+## Tips
+
+1. **Use `spawn:` for non-blocking operations** like opening applications or URLs
+2. **Use `exec:` for quick commands** that should complete before continuing
+3. **Test your key bindings** to ensure they don't conflict with existing Basalt shortcuts
+4. **Command limitations** - only the first argument is the executable, no shell expansion or piping
+5. **Use full paths** if executables aren't in your PATH
+6. **Variables work in arguments** - `%vault`, `%note` and `%note_path` are expanded in argument positions
+
+## Troubleshooting
+
+- If a key binding doesn't work, check that the key combination isn't already used by Basalt or your system
+- Ensure external commands are available in your PATH
+- Use absolute paths for commands if they're not found
+- Check that variables like `%vault`, `%note` and `%note_path` are being populated correctly in your context
+- Shell features like pipes (`|`), redirects (`>`), and command substitution (`$(...)`) are not supported
+- Complex operations requiring shell features should be wrapped in scripts that can be called as single commands
+
 ## Default configuration
 
 ```toml
@@ -33,6 +180,8 @@ Each key mapping is associated with a specific 'pane' and becomes active when th
 # quit: exits the application
 # vault_selector_modal_toggle: toggles vault selector modal (not available in splash screen)
 # help_modal_toggle: toggles help modal
+# spawn: <command> spawns a new process without blocking. This is for opening external applications or URLs.
+# exec: <command> runs a command in the current shell environment.
 #
 # Splash commands:
 #
@@ -102,6 +251,8 @@ key_bindings = [
  { key = "q", command = "quit" },
  { key = "ctrl+g", command = "vault_selector_modal_toggle" },
  { key = "?", command = "help_modal_toggle" },
+ { key = "ctrl+alt+e", command = "exec:vi %note_path" },
+ { key = "ctrl+alt+o", command = "spawn:open obsidian://open?vault=%vault&file=%note" },
 ]
 
 [splash]
