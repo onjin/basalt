@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.10.1 (Unreleased)
+## 0.10.1 (2025-08-31)
+
+### Added
+
+- [Add arbitrary (sync, spawn) command execution](https://github.com/erikjuhani/basalt/commit/750108f3282af5e947c23eb88ff3b5f8f196d0e4)
 
 ### Changed
 
