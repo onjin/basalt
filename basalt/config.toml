@@ -6,6 +6,8 @@
 # quit: exits the application
 # vault_selector_modal_toggle: toggles vault selector modal (not available in splash screen)
 # help_modal_toggle: toggles help modal
+# spawn: <command> spawns a new process without blocking. This is for opening external applications or URLs.
+# exec: <command> runs a command in the current shell environment.
 #
 # Splash commands:
 #
@@ -75,6 +77,8 @@ key_bindings = [
  { key = "q", command = "quit" },
  { key = "ctrl+g", command = "vault_selector_modal_toggle" },
  { key = "?", command = "help_modal_toggle" },
+ { key = "ctrl+alt+e", command = "exec:vi %note_path" },
+ { key = "ctrl+alt+o", command = "spawn:open obsidian://open?vault=%vault&file=%note" },
 ]
 
 [splash]
