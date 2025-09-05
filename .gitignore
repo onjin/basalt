@@ -17,3 +17,9 @@ target/
 # Added by cargo
 
 /target
+
+# Nix build result
+/result
+
+# Nix develop cache
+/.cargo-target

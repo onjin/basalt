@@ -29,6 +29,12 @@ cargo install basalt-tui
 
 Or use the precompiled binaries from the latest basalt release.
 
+Run from `nix` manager:
+
+```sh
+nix run github:erikjuhani/basalt
+```
+
 ## Background
 
 This is something that has been brewing in my head for quite some time. There has been different incarnations over the years, however, nothing as substantial as this.
